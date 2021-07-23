@@ -1,7 +1,7 @@
 ---
-title: "Pause_1"
+title: "Domenech_Analysis"
 author: "Charlie Wilson"
-date: "Jan 2021"
+date: "June 2021"
 output: pdf_document
 editor_options: 
   chunk_output_type: inline
@@ -28,8 +28,8 @@ monkey <- dlgInput("Enter monkey", Sys.info()["user"])$res
 
 # Where are the data?
 ##For Charlie Macbook
-path <- file.path("/Users/charliewilson/Dropbox/Reversible Cognition/Data for Iris/koechlin_pause",monkey); #Where are the data? You need to change this for your data location
-save.path <- file.path("/Users/charliewilson/Dropbox/Reversible Cognition/Data for Iris/koechlin_pause"); #Path to save your data frame. Try not to put it in with the raw data
+path <- file.path("/Users/charliewilson/Dropbox/Reversible Cognition/Domenech_Analysis/",monkey); #Where are the data? You need to change this for your data location
+save.path <- file.path("/Users/charliewilson/Dropbox/Reversible Cognition/`Data for Iris/Domenech_Analysis"); #Path to save your data frame. Try not to put it in with the raw data
 
 #List and organise the data
 Session.list <- dir(path = path, pattern = "*.txt"); #List the files in the date
@@ -58,7 +58,7 @@ if(Nsession >0){ #Sanity check
       
       fid <- Dates$fid[isession]; #Extract filename from Dates
       print(fid) #Show filename
-      event.raw <- read.csv(file=paste(path,"/",fid, sep= ""),sep= "", dec =",",  header = FALSE, fill=TRUE, colClasses=c(NA, NA, "NULL")); #Load data from .txt file using space as separator
+      event.raw <- read.csv(file=paste(path,"/",fid, sep= ""),sep= "", dec =",",  header = FALSE, fill=TRUE, colClasses=c(NA, NA,"NULL")); #Load data from .txt file using space as separator
       colnames(event.raw) <- c("time","event"); #Name columns
       event.raw$session <- isession; #Record session number
       
@@ -88,7 +88,7 @@ if(Nsession >0){ #Sanity check
   }
 
 #Save
-save(file = paste(save.path,"/Data_Iris_",monkey,".Rdata",sep = ""),Data, Dates) # Save monkey specific data frame
+save(file = paste(save.path,"/Data_Domenech_",monkey,".Rdata",sep = ""),Data, Dates) # Save monkey specific data frame
 
 ``` 
 
@@ -107,15 +107,44 @@ load(file = paste("Data_Iris_",monkey,".Rdata",sep = ""))
 
 ```
 
+
 What is in each session?
  
   
 ```{r}
  Sess.content <- Data %>%
         group_by(session) %>%   #Apply this session by session
-        summarize(max.sn = max(trial))   
-        
+        summarize(max.sn = max(trial), no65 = count(event=65)) 
+
+#How many traps?
+Sess.data <- Data %>%
+        group_by(session) %>%   #Apply this session by session
+        filter(event==152) %>%   #Noisy good answer
+        count(event)  #Count the instances
+Sess.data2 <- Data %>%
+        group_by(session) %>%   #Apply this session by session
+        filter(event==153) %>%   #Noisy bad answer
+        count(event)  #Count the instances
+Sess.dat <- left_join(Sess.data, Sess.data2, by="session") # Combine teh two DFs and make sure it is done on the basis of "session"
+colnames(Sess.dat) <- c("session","xx","152","yy","153"); #Rename columns
+Sess.dat <- subset(Sess.dat, select= -c(xx,yy)); #remove superfluous columns
+remove(Sess.data, Sess.data2); #remove superfluous DFs
 ```
+
+Let's build a trial by trial matrix to help the trial analysis
+
+```{r}
+
+Data <- Data %>%
+  dplyr::group_by(session,trial) %>%
+  dplyr::mutate(GTrap = sum(event == 152), BTrap = sum(event == 153)) %>%
+  dplyr::ungroup() 
+
+
+```
+
+
+*Deprecated code from Iris project*
 
 Let's plot something simple
  
@@ -140,7 +169,7 @@ Sess.dat <- left_join(Sess.data, Sess.data2, by="session") # Combine teh two DFs
 colnames(Sess.dat) <- c("session","xx","Rew","yy","Trials"); #Rename columns
 Sess.dat <- subset(Sess.dat, select= -c(xx,yy)); #remove superfluous columns
 remove(Sess.data, Sess.data2); #remove superfluous DFs
-#Again you could do that in 1 step, but this shows you how to do it in step by step
+
 
 ggplot(Sess.dat, aes(x=session)) + #What data to plot
     geom_point(aes(y=Rew),color='red') + #Add a specific plot and colour it
