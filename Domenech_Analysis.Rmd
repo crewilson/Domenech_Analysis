@@ -105,9 +105,9 @@ What is in each session?
  
   
 ```{r}
- Sess.content <- Data %>%
-        group_by(session) %>%   #Apply this session by session
-        summarize(max.sn = max(trial), no65 = count(event=65)) 
+ 
+
+# Need to count the 150-153 and then look at traps as a % of this. That sets us the number of trials with an outcome
 
 #How many traps?
 Sess.data <- Data %>%
@@ -118,10 +118,22 @@ Sess.data2 <- Data %>%
         group_by(session) %>%   #Apply this session by session
         filter(event==153) %>%   #Noisy bad answer
         count(event)  #Count the instances
-Sess.dat <- left_join(Sess.data, Sess.data2, by="session") # Combine teh two DFs and make sure it is done on the basis of "session"
-colnames(Sess.dat) <- c("session","xx","152","yy","153"); #Rename columns
-Sess.dat <- subset(Sess.dat, select= -c(xx,yy)); #remove superfluous columns
-remove(Sess.data, Sess.data2); #remove superfluous DFs
+Sess.data3 <- Data %>%
+        group_by(session) %>%   #Apply this session by session
+        filter(event==65) %>%   #Rewards
+        count(event)  #Count the instances
+Sess.dat <- merge(Sess.data, Sess.data2, by="session") %>%
+              merge(Sess.data3, by="session") # Combine the DFs and make sure it is done on the basis of "session"
+
+colnames(Sess.dat) <- c("session","xx","Noiseg","yy","Noiseb","zz","Rew"); #Rename columns
+Sess.dat <- subset(Sess.dat, select= -c(xx,yy,zz)); #remove superfluous columns
+remove(Sess.data, Sess.data2,Sess.data3); #remove superfluous DFs
+
+ggplot(Sess.dat, aes(x=session)) + #What data to plot
+    geom_point(aes(y=Noiseg),color='red') + #Add a specific plot and colour it
+    geom_point(aes(y=Noiseb),color='blue') +
+    geom_point(aes(y=Rew),color='green') 
+
 ```
 
 Let's build a trial by trial matrix to help the trial analysis
@@ -130,9 +142,16 @@ Let's build a trial by trial matrix to help the trial analysis
 
 Data <- Data %>%
   dplyr::group_by(session,trial) %>%
-  dplyr::mutate(GTrap = sum(event == 152), BTrap = sum(event == 153)) %>%
+  dplyr::mutate(GNorm = sum(event == 150), BNorm = sum(event == 151),GTrap = sum(event == 152), BTrap = sum(event == 153), Rew = sum(event == 65)) %>%
   dplyr::ungroup() 
 
+
+rm ('Trials')
+Trials <- Data %>%
+  dplyr::group_by(session, trial) %>%
+  dplyr::summarise()
+  
+  dplyr::mutate(GTrap = sum(event == 152), BTrap = sum(event == 153))
 
 ```
 
