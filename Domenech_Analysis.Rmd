@@ -18,7 +18,53 @@ library(tidyr)
 library(dplyr) 
 library(lubridate) 
 library(svDialogs)
+library(RcppRoll)
 
+```
+
+Function for plot DFs
+
+```{r echo = T, results = 'hide'}
+## Gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
+##   data: a data frame.
+##   measurevar: the name of a column that contains the variable to be summariezed
+##   groupvars: a vector containing names of columns that contain grouping variables
+##   na.rm: a boolean that indicates whether to ignore NA's
+##   conf.interval: the percent range of the confidence interval (default is 95%)
+summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
+                      conf.interval=.95, .drop=TRUE) {
+  
+    # New version of length which can handle NA's: if na.rm==T, don't count them
+    length2 <- function (x, na.rm=FALSE) {
+        if (na.rm) sum(!is.na(x))
+        else       length(x)
+    }
+
+    # This does the summary. For each group's data frame, return a vector with
+    # N, mean, and sd
+    datac <- ddply(data, groupvars, .drop=.drop,
+      .fun = function(xx, col) {
+        c(N    = length2(xx[[col]], na.rm=na.rm),
+          mean = mean   (xx[[col]], na.rm=na.rm),
+          sd   = sd     (xx[[col]], na.rm=na.rm)
+        )
+      },
+      measurevar
+    )
+
+    # Rename the "mean" column    
+    datac <- rename(datac, c("mean" = measurevar))
+
+    datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
+
+    # Confidence interval multiplier for standard error
+    # Calculate t-statistic for confidence interval: 
+    # e.g., if conf.interval is .95, use .975 (above/below), and use df=N-1
+    ciMult <- qt(conf.interval/2 + .5, datac$N-1)
+    datac$ci <- datac$se * ciMult
+
+    return(datac)
+}
 ```
 
 Setup and count and order data
@@ -64,13 +110,13 @@ if(Nsession >0){ #Sanity check
       # Which stimulus was used in the trial
       event.raw <- event.raw %>%
         group_by(trial) %>%   #Apply this trial by trial (rather than line by line)
-        mutate(Stim = nth(event,4)) %>%  #In every trial take teh nth entry in the Event column
+        dplyr:: mutate(Stim = nth(event,4)) %>%  #In every trial take teh nth entry in the Event column
         ungroup();  #Put it back with the new column
       
       # Which TS
       event.raw <- event.raw %>%
         group_by(trial) %>%
-        mutate(TS = nth(event,2)) %>%
+        dplyr:: mutate(TS = nth(event,2)) %>%
         ungroup();
       
       # This is the end of intiial analysis of a single day
@@ -140,19 +186,149 @@ Let's build a trial by trial matrix to help the trial analysis
 
 ```{r}
 
+# First some summary statistics from the whole trial
 Data <- Data %>%
   dplyr::group_by(session,trial) %>%
   dplyr::mutate(GNorm = sum(event == 150), BNorm = sum(event == 151),GTrap = sum(event == 152), BTrap = sum(event == 153), Rew = sum(event == 65)) %>%
   dplyr::ungroup() 
 
+# And use that to extract if the response was correct or not
+Data <- Data %>%
+  dplyr::group_by(session,trial) %>%
+  dplyr::mutate(COR = max(GNorm | GTrap), INC = max(BNorm | BTrap)) %>%
+  dplyr::ungroup() 
 
+# Extract response
+Data <- Data %>%
+  dplyr::group_by(session,trial) %>%
+  dplyr::mutate(Resp = 
+                  case_when(
+                    sum(event == 61)>0 ~ 1,
+                    sum(event == 62)>0 ~ 2,
+                    sum(event == 63)>0 ~ 3)) %>%
+  dplyr::ungroup() 
+
+# Now extract the first line of each trial
 rm ('Trials')
 Trials <- Data %>%
   dplyr::group_by(session, trial) %>%
-  dplyr::summarise()
-  
-  dplyr::mutate(GTrap = sum(event == 152), BTrap = sum(event == 153))
+  slice(1)
+Trials <- subset(Trials, COR>0 | INC>0) # Just trials with an outcome
 
+# Extract the previous trial info for Stim and Rew
+Trials <- Trials %>%
+  dplyr::group_by(session) %>%
+  dplyr::mutate(PrevSt=lag(Stim), PrevOut=lag(COR) ) %>%
+  dplyr::ungroup() 
+
+# How many rewards in the last 3 trials?
+Trials <- Trials %>%
+  dplyr::group_by(session) %>%
+  dplyr::mutate(roll_sum = roll_sum(Rew, 4, align = "right", fill = NA)) %>%
+  dplyr::ungroup() 
+   
+# We want a new DF with the outcomes around each trap
+TrapI <- which(Trials$GTrap == 1 | Trials$BTrap == 1)
+
+# Count trials since and to the Gtraps
+Trials$GTrapCyc = cumsum(Trials$GTrap)
+Trials <- Trials %>%
+  group_by(GTrapCyc) %>% 
+  dplyr::mutate(GTrapC = row_number()-1,GTrapCback = row_number() - (n()+1))
+
+# Subset down to trials just around Traps and set t around Traps
+rm ('Traps', 'TrapSE')
+Traps <- subset(Trials, GTrapC <=2 | GTrapCback == -1)
+Traps$t <-Traps$GTrapC
+Traps$t[Traps$t>2] <- -1
+
+# Is the response the same as the Trap?
+Traps <- Traps %>%
+  group_by(GTrapCyc) %>% 
+  dplyr::mutate(TrapR = dplyr::first(Resp), SameRT = as.integer(TrapR==Resp)) 
+
+# Is the stimulus the same as the Trap?
+Traps <- Traps %>%
+  group_by(GTrapCyc) %>% 
+  dplyr::mutate(TrapS = dplyr::first(Stim), SameST = as.integer(TrapS==Stim))
+
+TrapSSame <- subset(Traps, SameST == 1)
+TrapSDif <- subset(Traps, SameST == 0)
+
+# summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
+# We need the summary for teh different t values -1 to 2
+# But for t=2 only we need to split on the basis of PrevOut 
+# The following is an ugly way of achieving this...
+SS1 <- summarySE(TrapSSame, measurevar="SameRT", groupvars=c("t","PrevOut"))
+SS1 <- subset(SS1, t==2 & !is.na(PrevOut),select=-PrevOut)
+SS2 <- summarySE(TrapSSame, measurevar="SameRT", groupvars=c("t"))
+SS2 <- subset(SS2, t<2 & t!=0)
+SumSame <- rbind(SS2,SS1)
+
+# Also for the Different stimulus...
+SD1 <- summarySE(TrapSDif, measurevar="SameRT", groupvars=c("t","PrevOut"))
+SD1 <- subset(SD1, t==2 & !is.na(PrevOut),select=-PrevOut)
+SD2 <- summarySE(TrapSDif, measurevar="SameRT", groupvars=c("t"))
+SD2 <- subset(SD2, t<2)
+SumDif <- rbind(SD2,SD1)
+
+# Reproduce figs 2a,b from the Domenech Manuscript
+xxx <- c("t1-","t1+")
+
+ggplot(SumSame, aes(x=t,y=SameRT)) + #What data to plot
+    geom_point(size=3,color='red',fill='white')+
+    geom_text(aes(label=ifelse(t>1,xxx,'')),hjust=2,vjust=-1) +
+    geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
+    ylim(0,1) +
+    geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
+    geom_rect(aes(xmin=-0.1, xmax=0.1, ymin=0, ymax=1), color="grey", alpha=0.1) +
+    ggtitle("Same Stimulus as 'Negative' Trap on t0") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab("Proportion repetition same respons as 'Neg' Trap") +
+    xlab("Trials since 'Neg' Trap")
+   
+ggplot(SumDif, aes(x=t,y=SameRT)) + #What data to plot
+    geom_point(size=3,color='blue',fill='white')+
+    geom_text(aes(label=ifelse(t>1,xxx,'')),hjust=2,vjust=-1) +
+    geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
+    ylim(0,1) +
+    geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
+    geom_rect(aes(xmin=-0.1, xmax=0.1, ymin=0, ymax=1), color="grey", alpha=0.1) +
+    ggtitle("Different Stimulus from 'Negative' Trap on t0") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab("Proportion repetition same respons as 'Neg' Trap") +
+    xlab("Trials since 'Neg' Trap")
+  
+
+
+# Reproduce figs 2c,d from the Domenech Manuscript
+
+t1same <- subset(TrapSSame,t==1)
+Sumt1same <- summarySE(t1same, measurevar="SameRT", groupvars=c("roll_sum"))
+t1dif <- subset(TrapSDif,t==1)
+Sumt1dif <- summarySE(t1dif, measurevar="SameRT", groupvars=c("roll_sum"))
+
+ggplot(Sumt1same, aes(x=roll_sum,y=SameRT)) + #What data to plot
+  geom_point()+
+  geom_line(color='red')+
+  geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
+    ylim(0,1) +
+    geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
+    ggtitle("Same Stimulus as 'Negative' Trap on t0") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab("Proportion repetition same response on t1 as 'Neg' Trap") +
+    xlab("# Rewards in 3 trials before 'Neg' Trap")
+
+ggplot(Sumt1dif, aes(x=roll_sum,y=SameRT)) + #What data to plot
+  geom_point()+
+  geom_line(color='blue') +
+  geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
+    ylim(0,1) +
+    geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
+    ggtitle("Different Stimulus from 'Negative' Trap on t0") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab("Proportion repetition same response on t1 as 'Neg' Trap") +
+    xlab("# Rewards in 3 trials before 'Neg' Trap")
 ```
 
 
