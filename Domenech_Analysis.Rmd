@@ -71,7 +71,7 @@ Setup and count and order data
 Then extract it if needed
 Skip to next chunk if already saved
 
-```{r}
+```{r echo = T, results = 'hide'}
 
 monkey <- dlgInput("Enter monkey", Sys.info()["user"])$res
 
@@ -136,7 +136,7 @@ save(file = paste(save.path,"/Data_Domenech_",monkey,".Rdata",sep = ""),Data, Da
 
  If you don't need to run all of the above because you have already done it, you can load the data like this:
  
-```{r}
+```{r echo = T, results = 'hide'}
 
 monkey <- dlgInput("Enter monkey", Sys.info()["user"])$res
 
@@ -182,7 +182,7 @@ ggplot(Sess.dat, aes(x=session)) + #What data to plot
 
 ```
 
-Let's build a trial by trial matrix to help the trial analysis
+Let's build a trial by trial matrix to help the trial analysis, and populate it with teh necessary information on each trial and TS
 
 ```{r}
 
@@ -254,9 +254,13 @@ Traps <- Traps %>%
 
 TrapSSame <- subset(Traps, SameST == 1)
 TrapSDif <- subset(Traps, SameST == 0)
+```
 
+Use this to produce a monkey version of the figures from PD's AI manuscript
+
+```{r}
 # summarySE provides the standard deviation, standard error of the mean, and a (default 95%) confidence interval
-# We need the summary for teh different t values -1 to 2
+# We need the summary for the different t values -1 to 2
 # But for t=2 only we need to split on the basis of PrevOut 
 # The following is an ugly way of achieving this...
 SS1 <- summarySE(TrapSSame, measurevar="SameRT", groupvars=c("t","PrevOut"))
@@ -331,320 +335,53 @@ ggplot(Sumt1dif, aes(x=roll_sum,y=SameRT)) + #What data to plot
     xlab("# Rewards in 3 trials before 'Neg' Trap")
 ```
 
+Other more general plots    
 
-*Deprecated code from Iris project*
-
-Let's plot something simple
- 
 ```{r}
 
-# First we summarise the data in a number of sessions
-# Let's count the codes 65 and 100 (reward and trials)
-# To help you learn we do this in 2 different data frames and then combine them
-# It is also possible to do this in one go...
+# Counter in each TS
+Trials <- Trials %>%
+  group_by(session, TS) %>% 
+  dplyr::mutate(TScount = row_number(), TSperc = mean(COR))
+#Summarise % correct
+TSsum <- summarySE(Trials, measurevar="COR", groupvars=c("TScount"))
+#Plot % correct through TS
+ggplot(TSsum, aes(x=TScount, y=COR)) +
+  geom_point()+
+  geom_line(color='blue') +
+  geom_errorbar(aes(ymin=COR-se, ymax=COR+se), width=.1) +
+  geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
+  xlim(0,50) 
+
+#How well are the TSs solved?
+TSs <- Trials %>%
+  dplyr::group_by(session, TS) %>%
+  slice(1)
+
+ggplot(TSs, aes(x=TSperc)) +
+  geom_histogram()
+
+#Look at only the good TSs
+GoodTS <- subset(Trials, TSperc>0.75)
+GoodTSsum <- summarySE(GoodTS, measurevar="COR", groupvars=c("TScount"))
+ggplot(GoodTSsum, aes(x=TScount, y=COR)) +
+  geom_point()+
+  geom_line(color='green') +
+  geom_errorbar(aes(ymin=COR-se, ymax=COR+se), width=.1) +
+  geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
+  xlim(0,50) 
+
+#Look at only the bad TSs
+BadTS <- subset(Trials, TSperc<0.75)
+BadTSsum <- summarySE(BadTS, measurevar="COR", groupvars=c("TScount"))
+ggplot(BadTSsum, aes(x=TScount, y=COR)) +
+  geom_point()+
+  geom_line(color='red') +
+  geom_errorbar(aes(ymin=COR-se, ymax=COR+se), width=.1) +
+  geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
+  xlim(0,50) 
 
-Sess.data <- Data %>%
-        group_by(session) %>%   #Apply this session by session
-        filter(event==65) %>%   #Only look at 65  
-        count(event)  #Count teh instances
 
-Sess.data2 <- Data %>%
-        group_by(session) %>%   #Apply this session by session
-        filter(event==100) %>%   #Only look at 100  
-        count(event)  #Count the instances
-
-Sess.dat <- left_join(Sess.data, Sess.data2, by="session") # Combine teh two DFs and make sure it is done on the basis of "session"
-colnames(Sess.dat) <- c("session","xx","Rew","yy","Trials"); #Rename columns
-Sess.dat <- subset(Sess.dat, select= -c(xx,yy)); #remove superfluous columns
-remove(Sess.data, Sess.data2); #remove superfluous DFs
-
-
-ggplot(Sess.dat, aes(x=session)) + #What data to plot
-    geom_point(aes(y=Rew),color='red') + #Add a specific plot and colour it
-  geom_point(aes(y=Trials),color='blue') #Add a specific plot and colour it
-
-#Now add a calculation to the DF
-
-Sess.dat$Rate <- Sess.dat$Trials/Sess.dat$Rew #How many trials per reward
-
-# Now plot that
-
-ggplot(Sess.dat, aes(x=session, y=Rate)) + #What data to plot
-    geom_point(color='red') + #Add a specific plot and colour it
-    geom_smooth() #Add a smoothed line
-
-```
-
- Ok, where are the pauses
- 
- 
-Let's plot something simple
- 
- 
-```{r}
-
-Time <- subset(Data, event==75)
-Time <- Time %>%  
-  mutate(diff_row = time - lag(time))
-Time$diff_row <- replace(Time$diff_row, which(Time$diff_row < 0), NA)
-
-ggplot(Time, aes(x=diff_row)) + geom_histogram(binwidth=500) + xlim(0, 20000)
-ggplot(Time, aes(x=diff_row)) + geom_histogram(binwidth=10000) + xlim(20000,max(Time$diff_row)) 
-ggplot(Time, aes(x=diff_row)) + geom_histogram(binwidth=10000) + xlim(20000,300000) 
-ggplot(Time, aes(x=diff_row)) + geom_histogram(binwidth=5000) + scale_y_log10()
-
-
-Pauses <- subset(Time, diff_row>120000)
-ggplot(Pauses, aes(x=time)) + geom_density()
-ggplot(Pauses, aes(x=time)) + geom_histogram(binwidth=100000)
-ggplot(Pauses, aes(x=trial)) + geom_density()
-ggplot(Pauses, aes(x=trial)) + geom_histogram(binwidth=10)
-```
- 
- Iris Pause Extcraction
-```{r}
-
-
-#filtrer les donn?es pour ne conserver qu'un seul ?v?nement
-DataEvent <- dplyr::filter(Data,event == 75)
-
-#cr?ation d'une nouvelle colone en d?calant => utiliser fct "lag", default pour le d?calage
-DataEvent<-dplyr::mutate(DataEvent, time2 = lag(time, default=0))
-#supprimer les colones inutiles (=garder les colones utiles)
-DataEvent<-dplyr::select(DataEvent, session, trial, event, time, time2)
-#temps entre chaque ?v?nement
-DataEvent<-dplyr::mutate(DataEvent, ecart=time-time2)
-#enl?ve les ?carts qui ne correspondent pas ? des pauses (d'une session ? l'autre)
-DataEvent<-dplyr::filter(DataEvent, ecart>0)
-
-#graphiques pour d?terminer ce qu'on consid?re comme une pause (? revoir en fct des r?sutats)
-ggplot(DataEvent, aes(x=ecart)) + geom_histogram(binwidth = 1000)
-# pour plus tard x, y, alpha, color, fill, linetype, size, weight
-# xlim + scale_y_log10()
-
-#s?parer le graphique en 2 parties pour voir o? d?marrent les pauses
-ggplot(DataEvent, aes(x=ecart)) + geom_histogram(binwidth = 500) + xlim(0,40000)
-ggplot(DataEvent, aes(x=ecart)) + geom_histogram(binwidth = 1000) + xlim(40000,1000000)
-
-ggplot(DataEvent, aes(x=ecart)) + geom_density() + xlim(0,40000)
-ggplot(DataEvent, aes(x=ecart)) + geom_density() + xlim(40000,1000000)
-
-#ok maintenant on a d?termin? la pause => quand dans la session
-DataPause<-dplyr::filter(DataEvent,ecart>120000)
-#save(file = paste(save.path,"/Data_Iris_Pauses_",monkey,".Rdata",sep = ""),DataPause)
-save(file = paste("Data_Iris_Pauses_",monkey,".Rdata",sep = ""),DataPause)
-#graphique pause
-ggplot(DataPause, aes(x=time)) + geom_histogram()
-ggplot(DataPause, aes(x=time)) + geom_density()
-
-
-#on veut voir la relation entre un ?v?nement (les pauses) et un autre
-DataEvent2 <- dplyr::filter(Data,event == 101)
-
- 
-```
- 
-
- 
-Some simple analysis around the pauses
-
- 
-```{r}
-
-#------comparer le nombre de switch (78) par rapport au nombre de pauses------
-
-Nb.Sess1 <-Data %>% group_by(session) %>% filter(event==78) %>% count(event)
-Nb.Sess2 <- DataPause %>%group_by(session) %>% filter(event==75) %>% count(event)
-Nb.Switch <- left_join(Nb.Sess1, Nb.Sess2, by="session")
-colnames(Nb.Switch) <- c("session","code Switch","Switch","code Pauses","Pauses");
-  # pas besoin : Nb.sess <- subset(Nb.sess, select= -c(xx,yy));
-remove(Nb.Sess1, Nb.Sess2)
-
-ggplot(Nb.Switch, aes(x=session)) + 
-  geom_point(aes(y=Switch),color='blue') + geom_point(aes(y=Pauses),color='black')
-
-Nb.Switch$rapport <- Nb.Switch$Pauses/Nb.Switch$Switch
-
-ggplot(Nb.Switch, aes(x=session, y=rapport)) +
-  geom_point(color='blue') + geom_smooth(color='blue')
-
-ggplot(Nb.Switch, aes(x=Pauses, y=Switch)) + 
-  geom_point(color='blue')
-
-#-------comparer le nombre de r?compenses (65) par rapport au nombre de pauses---------
-
-Nb.Sess1 <-Data %>% group_by(session) %>% filter(event==65) %>% count(event)
-Nb.Sess2 <- DataPause %>%group_by(session) %>% filter(event==75) %>% count(event)
-Nb.Reward <- left_join(Nb.Sess1, Nb.Sess2, by="session")
-colnames(Nb.Reward) <- c("session","code Reward","Reward","code Pauses","Pauses");
-# pas besoin : Nb.sess <- subset(Nb.sess, select= -c(xx,yy));
-remove(Nb.Sess1, Nb.Sess2)
-
-ggplot(Nb.Reward, aes(x=session)) + 
-  geom_point(aes(y=Reward),color='orange') + geom_point(aes(y=Pauses),color='black')
-
-Nb.Reward$rapport <- Nb.Reward$Pauses/Nb.Reward$Reward
-
-ggplot(Nb.Reward, aes(x=session, y=rapport)) +
-  geom_point(color='orange') + geom_smooth(color='orange')
-
-ggscatter(Nb.Reward, x = "Pauses", y = "Reward",
-          add = "reg.line",                                 # Add regression line
-          conf.int = TRUE,                                  # Add confidence interval
-          add.params = list(color = "orange",
-                            fill = "lightgray")
-          )+
-  stat_cor(method = "pearson", label.x = 3, label.y = 30)  # Add correlation coefficient
-
-#-------comparer le nombre de t?che complet?e (103) par rapport au nombre de pauses---------
-
-Nb.Sess1 <-Data %>% group_by(session) %>% filter(event==103) %>% count(event)
-Nb.Sess2 <- DataPause %>%group_by(session) %>% filter(event==75) %>% count(event)
-Nb.Complet <- left_join(Nb.Sess1, Nb.Sess2, by="session")
-colnames(Nb.Complet) <- c("session","code Complet","Complet","code Pauses","Pauses");
-# pas besoin : Nb.sess <- subset(Nb.sess, select= -c(xx,yy)); #remove superfluous columns
-remove(Nb.Sess1, Nb.Sess2)
-
-ggplot(Nb.Complet, aes(x=session)) + 
-  geom_point(aes(y=Complet),color='pink') + geom_point(aes(y=Pauses),color='black')
-
-Nb.Complet$rapport <- Nb.Complet$Pauses/Nb.Complet$Complet
-
-ggplot(Nb.Complet, aes(x=session, y=rapport)) +
-  geom_point(color='pink') + geom_smooth(color='pink')
-
-
-ggscatter(Nb.Complet, x = "Pauses", y = "Complet",
-          add = "reg.line",                                 # Add regression line
-          conf.int = TRUE,                                  # Add confidence interval
-          add.params = list(color = "pink",
-                            fill = "lightgray")
-          )+
-  stat_cor(method = "pearson", label.x = 3, label.y = 30)  # Add correlation coefficient
-
-
-#-------comparer le nombre d'incorrect (69) par rapport au nombre de pauses---------
-
-Nb.Sess1 <-Data %>% group_by(session) %>% filter(event==69) %>% count(event)
-Nb.Sess2 <- DataPause %>%group_by(session) %>% filter(event==75) %>% count(event)
-Nb.Neg <- left_join(Nb.Sess1, Nb.Sess2, by="session")
-colnames(Nb.Neg) <- c("session","code Erreur","Erreur","code Pauses","Pauses");
-# pas besoin : Nb.sess <- subset(Nb.sess, select= -c(xx,yy)); #remove superfluous columns
-remove(Nb.Sess1, Nb.Sess2)
-
-ggplot(Nb.Neg, aes(x=session)) + 
-  geom_point(aes(y=Erreur),color='red') + geom_point(aes(y=Pauses),color='black')
-
-Nb.Neg$rapport <- Nb.Neg$Pauses/Nb.Neg$Erreur
-
-ggplot(Nb.Neg, aes(x=session, y=rapport)) +
-  geom_point(color='red') + geom_smooth(color='red')
-
- 
-ggscatter(Nb.Neg, x = "Pauses", y = "Erreur",
-          add = "reg.line",                                 # Add regression line
-          conf.int = TRUE,                                  # Add confidence interval
-          add.params = list(color = "red",
-                            fill = "lightgray")
-          )+
-  stat_cor(method = "pearson", label.x = 3, label.y = 30)  # Add correlation coefficient
-
-
-#-------comparer le nombre de fb positifs (68) par rapport au nombre de pauses---------
-
-Nb.Sess1 <-Data %>% group_by(session) %>% filter(event==68) %>% count(event)
-Nb.Sess2 <- DataPause %>%group_by(session) %>% filter(event==75) %>% count(event)
-Nb.Pos <- left_join(Nb.Sess1, Nb.Sess2, by="session")
-colnames(Nb.Pos) <- c("session","code FB positif","FB.positif","code Pauses","Pauses");
-# pas besoin : Nb.sess <- subset(Nb.sess, select= -c(xx,yy)); #remove superfluous columns
-remove(Nb.Sess1, Nb.Sess2)
-
-ggplot(Nb.Pos, aes(x=session)) + 
-  geom_point(aes(y=FB.positif),color='red') + geom_point(aes(y=Pauses),color='black')
-
-Nb.Pos$rapport <- Nb.Pos$Pauses/Nb.Pos$FB.positif
-
-ggplot(Nb.Pos, aes(x=session, y=rapport)) +
-  geom_point(color='green') + geom_smooth(color='green')
- 
-
-ggscatter(Nb.Pos, x = "Pauses", y = "FB.positif",
-          add = "reg.line",                                 # Add regression line
-          conf.int = TRUE,                                  # Add confidence interval
-          add.params = list(color = "green",
-                            fill = "lightgray")
-          )+
-  stat_cor(method = "pearson", label.x = 3, label.y = 30)  # Add correlation coefficient
-
-```
- 
- What happened just before the pauses?
- 
-```{r} 
- 
-
-NPause<-length(DataPause$session)
-Nbuffer <- 20
-counts <- data.frame(matrix(ncol = 5, nrow = NPause)) #Dataframe to collect teh new data
-colnames(counts) <- c("inc","cor","rew","sw","comp"); #rename File ID column
-
-for(iDataPause in 1:NPause){   #Boucle sur chaque pause
-  
-  # Extraction de coordonnées de la pause pour le trouver dans Data
-  x <- DataPause$session[iDataPause]; 
-  y <- DataPause$trial[iDataPause];
-  
-  #Extraction des Nbuffer dernier essaies avant la pause
-  test<- Data %>%
-    filter( session==x, between(trial,y-Nbuffer,y))
-  
-  # Compte les differents codes dasn test et appliquer à DataPause
- counts$inc[iDataPause] <- test %>%
-        tally(event==69)  #Count the number of that code  
- counts$cor[iDataPause] <- test %>%
-        tally(event==68)  #Count the number of that code  
- counts$rew[iDataPause] <- test %>%
-        tally(event==65)  #Count the number of that code  
- counts$sw[iDataPause] <- test %>%
-        tally(event==78)  #Count the number of that code  
- counts$comp[iDataPause] <- test %>%
-        tally(event==103)  #Count the number of that code  
-  
- rm(test) #Clean up
- # print(iDataPause) # Option pour checker le boucle
-}
- 
-# rentre counts dans DataPause
- DataPause <- cbind(DataPause, counts)
- 
- # Le output du "count" est un "discrete". Il faut le rendre numerique pour plotter
- DataPause$inc <- as.numeric(as.character(DataPause$inc))
-  DataPause$cor <- as.numeric(as.character(DataPause$cor))
-   DataPause$rew <- as.numeric(as.character(DataPause$rew))
-    DataPause$sw <- as.numeric(as.character(DataPause$sw))
-     DataPause$comp <- as.numeric(as.character(DataPause$comp))
-
- # Exemple figure compare ecart et time
- 
- ggscatter(DataPause, x = "inc", y = "ecart",
-          add = "reg.line",                                 # Add regression line
-          conf.int = TRUE,                                  # Add confidence interval
-          add.params = list(color = "red",
-                            fill = "lightgray")
-          )+
-  stat_cor(method = "pearson", label.x = 3, label.y = 30)  # Add correlation coefficient
-  
-# Exemple figure compare inc et time
- 
- ggscatter(DataPause, x = "inc", y = "time",
-          add = "reg.line",                                 # Add regression line
-          conf.int = TRUE,                                  # Add confidence interval
-          add.params = list(color = "green",
-                            fill = "lightgray")
-          )+
-  stat_cor(method = "pearson", label.x = 3, label.y = 30)  # Add correlation coefficient
- 
- 
 ```
 
 
