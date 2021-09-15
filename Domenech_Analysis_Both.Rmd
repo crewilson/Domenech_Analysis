@@ -287,24 +287,24 @@ Use this to produce a monkey version of the figures from PD's AI manuscript
 # We need the summary for the different t values -1 to 2
 # But for t=2 only we need to split on the basis of PrevOut 
 # The following is an ugly way of achieving this...
-SS1 <- summarySE(TrapSSame, measurevar="SameRT", groupvars=c("t","PrevOut"))
+SS1 <- summarySE(TrapSSame, measurevar="SameRT", groupvars=c("t","PrevOut","monkey"))
 SS1 <- subset(SS1, t==2 & !is.na(PrevOut),select=-PrevOut)
-SS2 <- summarySE(TrapSSame, measurevar="SameRT", groupvars=c("t"))
+SS2 <- summarySE(TrapSSame, measurevar="SameRT", groupvars=c("t","monkey"))
 SS2 <- subset(SS2, t<2 & t!=0)
 SumSame <- rbind(SS2,SS1)
 
 # Also for the Different stimulus...
-SD1 <- summarySE(TrapSDif, measurevar="SameRT", groupvars=c("t","PrevOut"))
+SD1 <- summarySE(TrapSDif, measurevar="SameRT", groupvars=c("t","PrevOut","monkey"))
 SD1 <- subset(SD1, t==2 & !is.na(PrevOut),select=-PrevOut)
-SD2 <- summarySE(TrapSDif, measurevar="SameRT", groupvars=c("t"))
+SD2 <- summarySE(TrapSDif, measurevar="SameRT", groupvars=c("t","monkey"))
 SD2 <- subset(SD2, t<2)
 SumDif <- rbind(SD2,SD1)
 
 # Reproduce figs 2a,b from the Domenech Manuscript
-xxx <- c("t1-","t1+")
+xxx <- c("t1-","t1-","t1+","t1+")
 
 ggplot(SumSame, aes(x=t,y=SameRT)) + #What data to plot
-    geom_point(size=3,color='red',fill='white')+
+    geom_point(aes(colour=monkey), size=3,fill='white')+
     geom_text(aes(label=ifelse(t>1,xxx,'')),hjust=2,vjust=-1) +
     geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
     ylim(0,1) +
@@ -316,7 +316,7 @@ ggplot(SumSame, aes(x=t,y=SameRT)) + #What data to plot
     xlab("Trials since 'Neg' Trap")
    
 ggplot(SumDif, aes(x=t,y=SameRT)) + #What data to plot
-    geom_point(size=3,color='blue',fill='white')+
+    geom_point(aes(colour=monkey), size=3,fill='white')+
     geom_text(aes(label=ifelse(t>1,xxx,'')),hjust=2,vjust=-1) +
     geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
     ylim(0,1) +
@@ -327,7 +327,7 @@ ggplot(SumDif, aes(x=t,y=SameRT)) + #What data to plot
     ylab("Proportion repetition same respons as 'Neg' Trap") +
     xlab("Trials since 'Neg' Trap")
   
-
+####### Here 150921 #############
 
 # Reproduce figs 2c,d from the Domenech Manuscript
 
