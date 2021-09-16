@@ -84,18 +84,30 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE, conf.i
 
 
 
-```{r eval = FALSE, results = 'hide'}
+```{r echo = FALSE, eval = FALSE, results = 'hide'}
 
 # Setup and count and order data
 # Then extract it if needed
 # Skip to next chunk if already saved
 
+rm("Dates","Data","monkey")
+
 monkey <- dlgInput("Enter monkey", Sys.info()["user"])$res
 
 # Where are the data?
-##For Charlie Macbook
-path <- file.path("/Users/charliewilson/Dropbox/Reversible Cognition/Domenech_Analysis/",monkey); #Where are the data? You need to change this for your data location
-save.path <- file.path("/Users/charliewilson/Dropbox/Reversible Cognition/Domenech_Analysis"); #Path to save your data frame. Try not to put it in with the raw data
+# 3 folders
+# This is dones longhand as only needs to be done once
+##ST3 (original dataset used here)
+#path <- file.path("/Users/charliewilson/Dropbox/Reversible Cognition/Domenech_Analysis/Behaviour/Recordings",monkey); #Where are the data? You need to change this for your data location
+#save.path <- file.path("/Users/charliewilson/Dropbox/Reversible Cognition/Domenech_Analysis/Behaviour/Recordings"); #Path to save your data frame. Try not to put it in with the raw data
+
+##ST1 
+#path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_Crit",monkey); #Where are the data? You need to change this for your data location
+#save.path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_Crit"); #Path to save your data frame. Try not to put it in with the raw data
+
+##ST2 
+path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_No_Crit",monkey); #Where are the data? You need to change this for your data location
+save.path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_No_Crit"); #Path to save your data frame. Try not to put it in with the raw data
 
 #List and organise the data
 Session.list <- dir(path = path, pattern = "*.txt"); #List the files in the date
@@ -147,7 +159,7 @@ if(Nsession >0){ #Sanity check
   }
 
 #Save
-save(file = paste(save.path,"/Data_Domenech_",monkey,".Rdata",sep = ""),Data, Dates) # Save monkey specific data frame
+save(file = paste(save.path,"/Data_Domenech_ST2_",monkey,".Rdata",sep = ""),Data, Dates) # Save monkey specific data frame
 
 ``` 
 
