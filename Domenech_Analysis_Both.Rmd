@@ -2,14 +2,18 @@
 title: "Domenech_Analysis_Both"
 author: "Charlie Wilson"
 date: "Sept 2021"
-output: pdf_document
-editor_options: 
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+editor_options:
   chunk_output_type: inline
 ---
 
 This is a new script for Sept 2021 to treat both Dali and Pippa data at the same time. 
 
 Data are loaded from pre-prepared data files, see teh silenced chunks for loading of new data or parameters. 
+
 
 ```{r echo = FALSE, results = 'hide', warning = FALSE, message = FALSE}
 
@@ -304,7 +308,7 @@ SumDif <- rbind(SD2,SD1)
 xxx <- c("t1-","t1-","t1+","t1+")
 
 ggplot(SumSame, aes(x=t,y=SameRT)) + #What data to plot
-    geom_point(aes(colour=monkey), size=3,fill='white')+
+    geom_point(aes(colour=monkey), size=3,alpha = 0.5)+
     geom_text(aes(label=ifelse(t>1,xxx,'')),hjust=2,vjust=-1) +
     geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
     ylim(0,1) +
@@ -316,7 +320,7 @@ ggplot(SumSame, aes(x=t,y=SameRT)) + #What data to plot
     xlab("Trials since 'Neg' Trap")
    
 ggplot(SumDif, aes(x=t,y=SameRT)) + #What data to plot
-    geom_point(aes(colour=monkey), size=3,fill='white')+
+    geom_point(aes(colour=monkey), size=3,alpha = 0.5)+
     geom_text(aes(label=ifelse(t>1,xxx,'')),hjust=2,vjust=-1) +
     geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
     ylim(0,1) +
@@ -327,18 +331,16 @@ ggplot(SumDif, aes(x=t,y=SameRT)) + #What data to plot
     ylab("Proportion repetition same respons as 'Neg' Trap") +
     xlab("Trials since 'Neg' Trap")
   
-####### Here 150921 #############
 
 # Reproduce figs 2c,d from the Domenech Manuscript
 
-t1same <- subset(TrapSSame,t==1)
-Sumt1same <- summarySE(t1same, measurevar="SameRT", groupvars=c("roll_sum"))
-t1dif <- subset(TrapSDif,t==1)
-Sumt1dif <- summarySE(t1dif, measurevar="SameRT", groupvars=c("roll_sum"))
+# Summarise rolling sum of same resp
+Sumt1same <- summarySE(subset(TrapSSame,t==1), measurevar="SameRT", groupvars=c("roll_sum","monkey"))
+Sumt1dif <- summarySE(subset(TrapSDif,t==1), measurevar="SameRT", groupvars=c("roll_sum","monkey"))
 
 ggplot(Sumt1same, aes(x=roll_sum,y=SameRT)) + #What data to plot
-  geom_point()+
-  geom_line(color='red')+
+  geom_point(aes(colour=monkey), size=3,alpha = 0.5)+
+  geom_line(aes(colour=monkey))+
   geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
     ylim(0,1) +
     geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
@@ -348,8 +350,8 @@ ggplot(Sumt1same, aes(x=roll_sum,y=SameRT)) + #What data to plot
     xlab("# Rewards in 3 trials before 'Neg' Trap")
 
 ggplot(Sumt1dif, aes(x=roll_sum,y=SameRT)) + #What data to plot
-  geom_point()+
-  geom_line(color='blue') +
+  geom_point(aes(colour=monkey), size=3,alpha = 0.5)+
+  geom_line(aes(colour=monkey)) +
   geom_errorbar(aes(ymin=SameRT-se, ymax=SameRT+se), width=.1) +
     ylim(0,1) +
     geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
@@ -358,7 +360,7 @@ ggplot(Sumt1dif, aes(x=roll_sum,y=SameRT)) + #What data to plot
     ylab("Proportion repetition same response on t1 as 'Neg' Trap") +
     xlab("# Rewards in 3 trials before 'Neg' Trap")
 ```
-The monkeys in this later dataset look very much like the "good learner" humans in the PD manuscript, without the AI lesion
+The monkeys in the most recent dataset look very much like the "good learner" humans in the PD manuscript, without the AI lesion
 This was unexpected for PD, who assumed from the Faraut et al paper that the Trap Reactivity of the monkeys shown therein was suggestive that they are doing a full reset on each Trap
 I am unconvinced that this was the case (their recovery was rapid), but in any case something might well have changed between the current dataset and the start of doing this Switch Task
 To test this we will need to compare the two datasets
@@ -371,47 +373,50 @@ How are the monkeys learning in the TSs in this dataset?
 
 # Counter in each TS
 Trials <- Trials %>%
-  group_by(session, TS) %>% 
+  group_by(monkey, session, TS) %>% 
   dplyr::mutate(TScount = row_number(), TSperc = mean(COR))
 #Summarise % correct
-TSsum <- summarySE(Trials, measurevar="COR", groupvars=c("TScount"))
+TSsum <- summarySE(Trials, measurevar="COR", groupvars=c("TScount","monkey"))
 #Plot % correct through TS
 ggplot(TSsum, aes(x=TScount, y=COR)) +
-  geom_point()+
-  geom_line(color='blue') +
+  geom_point(aes(colour=monkey), size=3,alpha = 0.5)+
+  geom_line(aes(colour=monkey)) +
   geom_errorbar(aes(ymin=COR-se, ymax=COR+se), width=.1) +
   geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
   xlim(0,50) 
 
 #How well are the TSs solved? Is there a pattern over time?
 TSs <- Trials %>%
-  dplyr::group_by(session, TS) %>%
+  dplyr::group_by(monkey, session, TS) %>%
   slice(1)
-ggplot(TSs, aes(x=TSperc)) +
-  geom_histogram()
+ggplot(TSs, aes(x=TSperc, fill = monkey)) +
+  geom_histogram(position="dodge")
 
 #Over time
-TSs$TSf <- as.factor(rownames(TSs))
+TSs <- TSs %>%
+    dplyr::group_by(monkey) %>%
+    dplyr::mutate(TSf = as.factor(row_number()))
+
 ggplot(TSs, aes(x=TSf, y=TSperc)) +
-  geom_point()
+  geom_point(aes(colour=monkey), size=1)
 
 
 #Look at only the good TSs
 GoodTS <- subset(Trials, TSperc>0.75)
-GoodTSsum <- summarySE(GoodTS, measurevar="COR", groupvars=c("TScount"))
+GoodTSsum <- summarySE(GoodTS, measurevar="COR", groupvars=c("TScount","monkey"))
 ggplot(GoodTSsum, aes(x=TScount, y=COR)) +
-  geom_point()+
-  geom_line(color='green') +
+  geom_point(aes(colour=monkey), size=3,alpha = 0.5)+
+  geom_line(aes(colour=monkey)) +
   geom_errorbar(aes(ymin=COR-se, ymax=COR+se), width=.1) +
   geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
   xlim(0,50) 
 
 #Look at only the bad TSs
 BadTS <- subset(Trials, TSperc<0.75)
-BadTSsum <- summarySE(BadTS, measurevar="COR", groupvars=c("TScount"))
+BadTSsum <- summarySE(BadTS, measurevar="COR", groupvars=c("TScount","monkey"))
 ggplot(BadTSsum, aes(x=TScount, y=COR)) +
-  geom_point()+
-  geom_line(color='red') +
+  geom_point(aes(colour=monkey), size=3,alpha = 0.5)+
+  geom_line(aes(colour=monkey)) +
   geom_errorbar(aes(ymin=COR-se, ymax=COR+se), width=.1) +
   geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
   xlim(0,50) 
@@ -431,12 +436,14 @@ Now we want to reproduce some of the figures from Faraut et al 2016, but for the
 
 # Count trials since and to the Gtraps
 
-Trials$Traps = cumsum(Trials$GTrap+Trials$BTrap)
+Trials <- Trials %>%
+  group_by(monkey) %>% 
+  mutate (Traps = cumsum(GTrap+BTrap))
 #max(Trials$Traps)
 #sum(Trials$GTrap + Trials$BTrap)
 
 Trials <- Trials %>%
-  group_by(Traps) %>% 
+  group_by(monkey, Traps) %>% 
   dplyr::mutate(TrapC = row_number()-1,TrapCback = row_number() - (n()+1))
 
 # Subset down to trials just around Traps and set t around Traps
@@ -444,15 +451,15 @@ Trials <- Trials %>%
 AllTraps <- subset(Trials, TrapC <=4 | TrapCback >= -4)
 AllTraps <- transform(AllTraps, tt = ifelse(TrapC>4,TrapCback,TrapC))
 
-TrapReac <- summarySE(AllTraps, measurevar="COR", groupvars=c("tt"))
+TrapReac <- summarySE(AllTraps, measurevar="COR", groupvars=c("tt","monkey"))
 
 ggplot(TrapReac, aes(x=tt,y=COR)) + #What data to plot
-    geom_point(size=3,color='red')+
-    geom_line() +
+    geom_point(aes(color=monkey),size=3,alpha=0.5)+
+    geom_line(aes(color=monkey)) +
     geom_errorbar(aes(ymin=COR-se, ymax=COR+se), width=.1) +
     ylim(0.3,0.7) +
     geom_hline(aes(yintercept=0.333), colour="#990000", linetype="dashed") +
-    geom_rect(aes(xmin=-0.1, xmax=0.1, ymin=0.3, ymax=0.7), color="grey", alpha=0.1) +
+    geom_rect(aes(xmin=-0.1, xmax=0.1, ymin=0.3, ymax=0.7), color="grey", alpha=0.01) +
     ggtitle("Trap Reactivity") +
     theme(plot.title = element_text(hjust = 0.5)) +
     ylab("% Correct") +
