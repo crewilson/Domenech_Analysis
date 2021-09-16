@@ -10,9 +10,16 @@ editor_options:
   chunk_output_type: inline
 ---
 
-This is a new script for Sept 2021 to treat both Dali and Pippa data at the same time. 
+This is a new script for Sept 2021 to treat both Dali and Pippa data at the same time, and to consider 3 periods of work.
 
-Data are loaded from pre-prepared data files, see teh silenced chunks for loading of new data or parameters. 
+Detailed schedule for the two monkeys can be found in Training history.docx, but here we consider 3 periods of the Switch Task:
+ST1 – from the start of Switch Task just after transfer
+ST2 – from when they learn without criterion to surgery
+ST3 – later period with stable recordings and well after surgery (P& D only)
+
+Previous scripts cover only ST3 (for example teh first Domenech_Analysis)
+
+Data are loaded from pre-prepared data files, see the silenced chunks for loading of new data or parameters. 
 
 
 ```{r echo = FALSE, results = 'hide', warning = FALSE, message = FALSE}
