@@ -106,8 +106,11 @@ monkey <- dlgInput("Enter monkey", Sys.info()["user"])$res
 #save.path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_Crit"); #Path to save your data frame. Try not to put it in with the raw data
 
 ##ST2 
-path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_No_Crit",monkey); #Where are the data? You need to change this for your data location
-save.path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_No_Crit"); #Path to save your data frame. Try not to put it in with the raw data
+#path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_No_Crit",monkey); #Where are the data? You need to change this for your data location
+#save.path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/ST_No_Crit"); #Path to save your data frame. Try not to put it in with the raw data
+
+#Choose which dataset you want and select a path
+
 
 #List and organise the data
 Session.list <- dir(path = path, pattern = "*.txt"); #List the files in the date
@@ -168,18 +171,28 @@ save(file = paste(save.path,"/Data_Domenech_ST2_",monkey,".Rdata",sep = ""),Data
 ```{r echo = TRUE, results = 'hide'}
 
 # Where are the data?
-save.path <- file.path("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis"); #Path to save your data frame. Try not to put it in with the raw data
 
-load(file = paste(save.path,"/Data_Domenech_Pippa.Rdata",sep = ""))
-DataP<- Data %>%
-  mutate(monkey = "P")
-rm ('Data')
-load(file = paste(save.path,"/Data_Domenech_Dali.Rdata",sep = ""))
-DataD<- Data %>%
-  mutate(monkey = "D")
-rm ('Data')
-Data <- rbind (DataP, DataD)
-rm ('DataP', 'DataD')
+paths <- ("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/"); 
+
+
+Phase <- c("ST1","ST2","ST3")
+Monkey <- c("Pippa","Dali")
+Dat <- data.frame(); #Initialise big data frame
+
+for(m in Monkey){
+  for(p in Phase){
+    load(file = paste(paths,p,"/Data_Domenech_",p,"_",m,".Rdata",sep = ""))
+    print(paste(paths,p,"/Data_Domenech_",p,"_",m,".Rdata",sep = "")) 
+    Data <- Data %>%
+      mutate(monkey = m, Phase = p)
+    Dat <- rbind (Dat, Data)
+    rm ('Data')
+   }
+}
+    
+
+## Here 17/09/21 ##
+    
 
 ```
 
