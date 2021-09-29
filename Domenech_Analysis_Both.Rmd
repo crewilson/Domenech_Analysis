@@ -3,9 +3,9 @@ title: "Domenech_Analysis_Both"
 author: "Charlie Wilson"
 date: "Sept 2021"
 output:
-  pdf_document: default
   html_document:
     df_print: paged
+  pdf_document: default
 editor_options:
   chunk_output_type: inline
 ---
@@ -186,7 +186,7 @@ save(file = paste(paths,"/All_Data_ST123.Rdata",sep = ""),Dat, All_dates) # Save
 
 First load the major datafile
 
-```{r results = 'hide'}
+```{r echo = FALSE, results = 'hide'}
 
 # Where are the data?
 paths <- ("/Users/charliewilson/Dropbox/Brain Lyon/Reversible Cognition/Domenech_Analysis/Behaviour/"); 
@@ -236,7 +236,7 @@ ggplot(Sess.dat, aes(x=session, y=Count, color=Outcome)) + #What data to plot
 
 Let's build a trial by trial matrix to help the trial analysis, and populate it with the necessary information on each trial and TS
 
-```{r}
+```{r echo = FALSE}
 
 # First some summary statistics from the whole trial
 Dat <- Dat %>%
@@ -319,7 +319,7 @@ TrapSDif <- subset(Traps, SameST == 0)
 
 Use this to produce a monkey version of the figures from PD's AI manuscript
 
-```{r warning = FALSE}
+```{r echo = FALSE, warning = FALSE}
 
 #Test <- table(TrapSSame$SameRT)
 
@@ -404,6 +404,8 @@ ggplot(Sumt1dif, aes(x=roll_sum,y=SameRT)) + #What data to plot
     facet_grid(monkey ~ Phase)+ 
     theme_bw()
 ```
+
+
 Performance of the 2 monkeys across the 3 stages of this task is fairly similar and strong. 
 The monkeys look very much like the "good learner" humans in the PD manuscript, without the AI lesion
 There is possibly a reduction in the trap reactivity across phases, so will study this below. 
@@ -411,7 +413,7 @@ There is possibly a reduction in the trap reactivity across phases, so will stud
 So how does the monkeys' within-TS learning change across the stages?    
 
 
-```{r warning = FALSE}
+```{r warning = FALSE,echo = FALSE }
 
 # Counter in each TS
 Trials <- Trials %>%
@@ -475,13 +477,14 @@ ggplot(BadTSsum, aes(x=TScount, y=COR)) +
   theme_bw()
 
 ```
+
 The comparison here is tricky as there is a criterion in ST1 but not afterwards. 
 Maybe learning is initially faster in later STs? But overall there is a wider spread and more bad TSs in the later STs
 
 
 Now we want to reproduce some of the figures from Faraut et al 2016, but for the current dataset
 
-```{r}
+```{r warning = FALSE,echo = FALSE}
 
 #Let's look at trap reactivity as %COR (Fig 4A Faraut)
 
@@ -521,10 +524,24 @@ ggplot(TrapReac, aes(x=tt,y=COR)) + #What data to plot
     theme_bw()
 
 ```
+
 So in the early version the Trap reactivity is greater than it is more recently, but there are pre-trap differences between the monkeys so interpretation is hard. 
 To be discussed....
 
+So can we track a trap reactivity measure across the stages?
 
 
- 
+```{r warning = FALSE,echo = FALSE}
+
+#Trials 0 and 1
+
+TrapRe <- subset(AllTraps, tt==0 | tt==1)
+TrapRe <- TrapRe %>%
+  dplyr::group_by(monkey,Phase,session) %>%
+  dplyr::mutate(ttlag=lag(tt), tttest = tt+ttlag ) %>%
+  dplyr::ungroup() 
+
+
+```
+
  
