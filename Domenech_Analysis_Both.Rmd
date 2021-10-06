@@ -536,12 +536,25 @@ So can we track a trap reactivity measure across the stages?
 #Trials 0 and 1
 
 TrapRe <- subset(AllTraps, tt==0 | tt==1)
-TrapRe <- TrapRe %>%
-  dplyr::group_by(monkey,Phase,session) %>%
-  dplyr::mutate(ttlag=lag(tt), tttest = tt+ttlag ) %>%
-  dplyr::ungroup() 
+TrapReS <- TrapRe %>%
+  dplyr::group_by(monkey,Phase,session,tt) %>% #Group on tt to separate the outcomes
+  dplyr::summarise(Cor=mean(COR)) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(diff=Cor-lag(Cor,default=first(Cor))) # This calculates the trap reactivity
+TrapReS <- subset(TrapReS, tt==1) #Fudge to only have the reactivity as 0 -> 1
+TrapReS$diff <- TrapReS$diff * -1 # Trap reactivity as +ve value
 
+ggplot(TrapReS, aes(x=session,y=diff)) + #What data to plot
+    geom_point(aes(color=monkey),size=1,alpha=0.5)+
+    geom_smooth(aes(color=monkey)) +
+    ggtitle("Trap Reactivity Change over time") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylab("Trap reactivity") +
+    xlab("Session")+
+    facet_grid(monkey ~ Phase)+ 
+    theme_bw()
 
 ```
 
+The evidence for a diminishing trap reactivity over time is present but weak...
  
