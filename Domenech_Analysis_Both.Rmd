@@ -230,6 +230,14 @@ Sess.dat <- pivot_longer(Sess.dat, -c(session, monkey, Phase), values_to = "Coun
 ggplot(Sess.dat, aes(x=session, y=Count, color=Outcome)) + #What data to plot
     geom_point(aes(shape = monkey, color = Outcome))  + #Add a specific plot and colour it
     facet_grid(monkey ~ Phase)
+
+
+Sess.dat <- Sess.dat[ which(Sess.dat$Outcome!='Rew'), ]
+
+ggplot(Sess.dat, aes(x=session, y=Count, color=Outcome)) + #What data to plot
+    geom_point(aes(shape = monkey, color = Outcome, alpha=0.3))  + #Add a specific plot and colour it
+    geom_smooth() +
+    facet_grid(monkey ~ Phase)
     
 
 ```
@@ -557,4 +565,6 @@ ggplot(TrapReS, aes(x=session,y=diff)) + #What data to plot
 ```
 
 The evidence for a diminishing trap reactivity over time is present but weak...
+
+So what else can we add to this?
  
